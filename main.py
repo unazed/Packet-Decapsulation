@@ -1,9 +1,17 @@
 from pprint import pprint
 from re import findall
 
+matlib = True
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    print("{*} Matplotlib moduled not installed, 'packet' argument will not be supported")
+    matlib = False
+
 import socket
 import struct
 import sys
+import time
 
 
 def recv_all(sockfd, min_recv=512):
@@ -153,6 +161,8 @@ try:
 except socket.error as exc: 
     raise SystemExit("{*} Must be root or be run prefixed with 'sudo'\n" + "{exc}".format(exc=exc))
 
+packets = {}
+
 eth_properties = {
     "broadcast": False,
     "loopback": False,
@@ -169,10 +179,14 @@ IP_PROTOCOLS = {
     '6': "tcp",
     '1': "icmp",
     "eth": "eth",
-    "ip": "ip"
+    "ip": "ip",
+    "packet": "packet"
 }
 
 assert sys.argv[1].lower() in IP_PROTOCOLS.values()  # Protocol not supported or not found.
+
+if sys.argv[1].lower() == "packet" and not matlib:
+    raise SystemExit("{*} Install the Matplotlib module in order to use the 'packet' argument")
 
 ip_properties = {
     "version": "",
@@ -193,12 +207,22 @@ ip_properties = {
     "data": ""
 }
 
+ctime = time.time()
+
 while 1:
-    RAW_DATA = recv_all(RAW_SOCKET)
-    if not RAW_DATA:
-        print("{0} No data received from network.")
-        break
-        # NOTE: possibly redundant condition
+    try:
+        RAW_DATA = recv_all(RAW_SOCKET)
+    except KeyboardInterrupt:
+        if len(packets) == 0:
+            print("{*} Nothing to display")
+            break
+        else:
+            plt.bar(range(len(packets)), packets.values(), align="center")
+            plt.ylabel("Packet count")
+            plt.xlabel("Over n seconds")
+            plt.xticks(range(len(packets)), packets.keys())
+            plt.show()
+            break
 
     """
     ETHERNET PARSING
@@ -248,6 +272,11 @@ while 1:
     ip_properties['src'] = bip_to_ascii(RAW_DATA[12:16])
     ip_properties['dst'] = bip_to_ascii(RAW_DATA[16:20])
 
+    try:
+        packets[str(int(time.time() - ctime))] = packets[str(int(time.time()-ctime))] + 1
+    except KeyError:
+        packets[str(int(time.time() - ctime))] = 1
+
     if ip_properties['dst'].startswith("224"):
         ip_properties['multicast'] = True
     if ip_properties['ihl'] > 5:
@@ -264,4 +293,5 @@ while 1:
         pprint(parse_udp(ip_properties['data']))
     elif sys.argv[1].lower() == "icmp" and ip_properties['protocol'] == "icmp":
         pprint(parse_icmp(ip_properties['data']))
-    
+    elif sys.argv[1].lower() == "packet" and matlib:
+        pprint(packets)
