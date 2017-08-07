@@ -55,7 +55,7 @@ def parse_icmp(data):
 
     return {
         "type": ICMP_TYPE,
-        "code": ICMP_TYPE,
+        "code": ICMP_CODE,
         "checksum": ICMP_CHKS,
         "data": ICMP_DATA
     }
@@ -164,7 +164,7 @@ if sys.argv[1] == "-h" or sys.argv[1] == "--help":
 try:
     RAW_SOCKET = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(2048))
 except socket.error as exc: 
-    raise SystemExit("{*} Must be root or be run prefixed with 'sudo'\n" + "{exc}".format(exc=exc))
+    raise SystemExit("[*] Must be root or be run prefixed with 'sudo'\n{exc}".format(exc=exc))
 
 packets = {}
 
@@ -218,7 +218,7 @@ while 1:
     try:
         RAW_DATA = recv_all(RAW_SOCKET)
     except KeyboardInterrupt:
-        if len(packets) == 0:
+        if len(packets) == 0 and not matlib:
             print("{*} Nothing to display")
             break
         else:
